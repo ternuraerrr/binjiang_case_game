@@ -64,6 +64,17 @@
             border-color: var(--primary-color);
         }
         
+        .error-message {
+            color: #ea4335;
+            font-size: 14px;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #fff5f5;
+            border-radius: 6px;
+            border-left: 4px solid #ea4335;
+            display: none;
+        }
+        
         .evidence-select-hint {
             color: var(--text-secondary);
             font-size: 14px;
@@ -1000,9 +1011,15 @@
             <div class="suspect-input-container">
                 <div class="suspect-input-title">指认嫌疑人</div>
                 <input type="text" class="suspect-input" id="suspectInput" placeholder="请输入你认为的凶手姓名">
+                <div class="error-message" id="suspectError">
+                    <!-- 错误信息将通过JavaScript动态生成 -->
+                </div>
                 <div class="evidence-select-hint">
                     💡 提示：请输入凶手的真实姓名。你选择的证据将作为指控依据。
                 </div>
+				<div class="evidence-select-hint">
+				ps：十分感谢@戈多 警员在此部分对指认嫌疑人不能是死者、代号等的建议，现已改进。
+				</div>
             </div>
             
             <button class="submit-report-btn" id="submitReportBtn">提交最终报告</button>
@@ -1064,7 +1081,7 @@
                         <p>【青州日报讯】今日下午，青州市公安局召开新闻发布会，通报了备受社会关注的"滨江新城程序员死亡案"侦破情况。经过连续9天的缜密侦查，警方成功抓获犯罪嫌疑人赵翔宇，案件宣布告破。</p>
                         
                         <div class="news-quote">
-                            "这是正义的胜利，也是科技助力侦查的典范。"青州市公安局刑侦支队队长刘建国在新闻发布会上表示，"监控视频等电子证据在此案侦破中起到了决定性作用。"
+                            "这是正义的胜利，也是科技助力侦查的典范。"青州市公安局刑侦支队队长张宏刚在新闻发布会上表示，"监控视频等电子证据在此案侦破中起到了决定性作用。"
                         </div>
                         
                         <p>据警方介绍，案件发生后，专案组调取了案发现场周边所有监控录像。通过技术分析，发现了一段关键视频：案发当晚21:47分，赵翔宇驾驶车辆进入烂尾楼区，23分钟后独自离开。这段视频成为案件突破口。</p>
@@ -1446,6 +1463,25 @@
         const CORRECT_SUSPECT = "赵翔宇";
         const CORRECT_EVIDENCE = "监控"; // 关键证据是监控视频
         
+        // 无效嫌疑人列表（死者、警员、代号）
+        const INVALID_SUSPECTS = {
+            // 死者
+            "江川": "江川是本案的受害者，不能指认为凶手。请重新输入真正的嫌疑人姓名。",
+            "林纾": "林纾是2020年失踪案的受害者，已确认死亡，不能指认为本案凶手。请重新输入真正的嫌疑人姓名。",
+            
+            // 警员
+            "张宏刚": "张宏刚是负责本案的主办刑警，不能指认为凶手。请重新输入真正的嫌疑人姓名。",
+            "岳月": "岳月是负责本案的刑警，不能指认为凶手。请重新输入真正的嫌疑人姓名。",
+            "陈亚菲": "陈亚菲是负责本案的刑警，不能指认为凶手。请重新输入真正的嫌疑人姓名。",
+            "曹康": "曹康是技术科警员，负责本案的技术支持，不能指认为凶手。请重新输入真正的嫌疑人姓名。",
+            "赵盈嫚": "赵盈嫚是法医，负责本案的法医鉴定工作，不能指认为凶手。请重新输入真正的嫌疑人姓名。",
+            
+            // 案件代号
+            "园丁": "园丁是案件中的代号，并非真实姓名。请重新输入真正的嫌疑人姓名。",
+            "牧羊人": "牧羊人是案件中的代号，并非真实姓名。请重新输入真正的嫌疑人姓名。",
+            "渡鸦": "渡鸦是案件中的代号，并非真实姓名。请重新输入真正的嫌疑人姓名。"
+        };
+        
         // 全局变量 - 使用localStorage持久化存储
         let searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
         let discoveredEvidences = JSON.parse(localStorage.getItem('discoveredEvidences')) || [];
@@ -1458,6 +1494,7 @@
         const openReportBtn = document.getElementById('openReportBtn');
         const submitReportBtn = document.getElementById('submitReportBtn');
         const suspectInput = document.getElementById('suspectInput');
+        const suspectError = document.getElementById('suspectError');
         const initialHint = document.getElementById('initialHint');
         const resultsSection = document.getElementById('resultsSection');
         const evidenceList = document.getElementById('evidenceList');
@@ -1524,6 +1561,40 @@
             displayResults(results, query);
         }
         
+        // 检查嫌疑人是否有效
+        function validateSuspect(suspectName) {
+            suspectName = suspectName.trim();
+            
+            // 检查是否为空
+            if (!suspectName) {
+                showError("请输入嫌疑人姓名。");
+                return false;
+            }
+            
+            // 检查是否为无效嫌疑人
+            if (INVALID_SUSPECTS[suspectName]) {
+                showError(INVALID_SUSPECTS[suspectName]);
+                return false;
+            }
+            
+            // 隐藏错误信息
+            hideError();
+            return true;
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            suspectError.textContent = message;
+            suspectError.style.display = 'block';
+            suspectInput.style.borderColor = '#ea4335';
+        }
+        
+        // 隐藏错误信息
+        function hideError() {
+            suspectError.style.display = 'none';
+            suspectInput.style.borderColor = '';
+        }
+        
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
             // 从localStorage恢复数据
@@ -1548,6 +1619,11 @@
                     e.preventDefault();
                     performSearch();
                 }
+            });
+            
+            // 嫌疑人输入框输入事件
+            suspectInput.addEventListener('input', function() {
+                validateSuspect(this.value);
             });
             
             // 打开报告按钮
@@ -1672,8 +1748,9 @@
             updateEvidenceSelectList();
             updateProgress();
             
-            // 重置输入框
+            // 重置输入框和错误信息
             suspectInput.value = '';
+            hideError();
         }
         
         // 更新证据选择列表
@@ -1767,8 +1844,8 @@
         function submitReport() {
             const suspect = suspectInput.value.trim();
             
-            if (!suspect) {
-                alert('请输入嫌疑人姓名。');
+            // 验证嫌疑人姓名
+            if (!validateSuspect(suspect)) {
                 suspectInput.focus();
                 return;
             }
@@ -1941,6 +2018,7 @@
             
             searchInput.value = '';
             suspectInput.value = '';
+            hideError();
             
             updateProgress();
             updateOpenReportButton();
